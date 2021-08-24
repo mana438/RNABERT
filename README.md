@@ -5,7 +5,7 @@ In this package, we provides resources including: source codes of the RNABERT mo
 
 ## 1. Environment setup
 
-Our code is written with python Python 3.6.5. Our code requires PyTorch version >= 1.4.0. Please follow the instructions here: https://github.com/pytorch/pytorch#installation.
+Our code is written with python Python 3.6.5. Our code requires PyTorch version >= 1.4.0, biopython version >=1.76, and C++17 compatible compiler. Please follow the instructions here: https://github.com/pytorch/pytorch#installation.
 Also, please make sure you have at least one NVIDIA GPU. 
 
 #### 1.1 Install the package and other requirements
