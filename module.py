@@ -3,8 +3,6 @@ import alignment_C as Aln_C
 from torch import nn
 import torch.nn.functional as F
 import torch.multiprocessing as mp
-import multiprocessing as multi
-from multiprocessing import Pool
 from dataload import  num_to_base
 import time
 import numpy as np
@@ -15,22 +13,15 @@ class Train_Module:
 
 	def train_MLM(self, low_seq_0, masked_seq_0, prediction_scores):
 		criterion = nn.CrossEntropyLoss()
-		# forward operation
-		# torch.shereはnp.whereと異なりindexを返さないのでまず0/1の行列maskを作り、nonzeroメソッドでindexを返し
-		# splitでindexをリストの引数のように使える形に変形
-		# inputとlabelで異なるとこ(maskと塩基置換)を検出
 		mask = masked_seq_0 - low_seq_0 != 0
-		# padding部位以外を検出
 		length_mask = masked_seq_0 != 0
-		# 同一塩基同士のmap箇所をランダムに決定
 		same_base_mask = torch.bernoulli(torch.ones(mask.shape)*0.05).byte().to(self.device)  
 		mask = mask + same_base_mask
 		index = torch.nonzero(mask).split(1, dim=1)
-		# 1のdimensionがあるとcross entrpyが通らないので削除
 		prediction_scores = torch.squeeze(prediction_scores[index])
 		new_low_seq_0 = torch.squeeze(low_seq_0[index])
-		loss = criterion(prediction_scores, new_low_seq_0)  # 損失を計算        
-		_, preds = torch.max(prediction_scores, 1)  # ラベルを予測
+		loss = criterion(prediction_scores, new_low_seq_0)     
+		_, preds = torch.max(prediction_scores, 1)
 
 		correct = torch.sum(preds == new_low_seq_0.data).double()/len(new_low_seq_0)
 		return loss, correct
@@ -38,12 +29,11 @@ class Train_Module:
 	def train_SSL(self, SS, prediction_scores):
 		criterion = nn.CrossEntropyLoss()
 		index = torch.nonzero(SS).split(1, dim=1)
-		# 1のdimensionがあるとcross entrpyが通らないので削除
 		prediction_scores = torch.squeeze(prediction_scores[index])
 		SS_answer = torch.squeeze(SS[index])
 		
-		loss = criterion(prediction_scores, SS_answer)  # 損失を計算        
-		_, preds = torch.max(prediction_scores, 1)  # ラベルを予測
+		loss = criterion(prediction_scores, SS_answer)        
+		_, preds = torch.max(prediction_scores, 1)
 		correct = torch.sum(preds == SS_answer.data).double()/len(SS_answer)
 		return loss, correct
 
@@ -62,18 +52,16 @@ class Train_Module:
 		predicted_label = torch.where(distance.view(-1) < 660,  torch.ones(family_0.size()[0]).to("cuda"), torch.full((family_0.size()[0],), -1).to("cuda"))
 		match = torch.where((distance_label * predicted_label) == 1, torch.ones(family_0.size()[0]).to("cuda"), torch.zeros(family_0.size()[0]).to("cuda"))
 		correct = torch.sum(match)
-		# print( family_0, family_1, distance_label, distance.view(-1), loss)
 		return loss, correct
 
 	def train_MUL(self, z0_list, z1_list, common_index_0, common_index_1, seq_len_0, seq_len_1):   
 		bert_scores, _ = self.match(z0_list, z1_list)
 		loss = 0.0
 		for i, bert_score in enumerate(bert_scores):
-			# structural learning
 			loss += self.structural_learning(bert_score, common_index_0[i], seq_len_0[i], common_index_1[i], seq_len_1[i])
 		return loss
 	
-	def test_align(self, low_seq_0, low_seq_1, z0_list, z1_list, common_index_0, common_index_1, seq_len_0, seq_len_1):
+	def test_align(self, low_seq_0, low_seq_1, z0_list, z1_list, common_index_0, common_index_1, seq_len_0, seq_len_1, show_aln):
 		bert_scores, _ = self.match(z0_list, z1_list)
 		sequence_a = num_to_base(low_seq_0)
 		sequence_b = num_to_base(low_seq_1)
@@ -82,7 +70,8 @@ class Train_Module:
 		len_TP = 0
 		for i, bert_score in enumerate(bert_scores):
 			bert_score = torch.flatten(bert_score.T).tolist()
-			common_index_A_B = Aln_C.global_aln(bert_score, [0] * len(bert_score), [0] * len(bert_score), sequence_a[i], sequence_b[i], seq_len_0[i], seq_len_1[i], self.config.gap_opening, self.config.gap_extension, 0, 0)
+			x = 1 if show_aln == True else 0
+			common_index_A_B = Aln_C.global_aln(bert_score, [0] * len(bert_score), [0] * len(bert_score), sequence_a[i], sequence_b[i], seq_len_0[i], seq_len_1[i], self.config.gap_opening, self.config.gap_extension, x, 0)
 			common_index_A_B = torch.tensor(common_index_A_B).to(self.device).view(2, -1)
 			len_pred_match += int(torch.sum(common_index_A_B[0]))
 			len_ref_match += int(torch.sum(common_index_0[i])) 

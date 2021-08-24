@@ -1,40 +1,27 @@
 import random
 import time
 import numpy as np
-from tqdm import tqdm
 import torch 
-from torch import nn
 import torch.optim as optim
-from torch.utils.data.dataset import Subset
 from torchvision import transforms, datasets
 import copy
 from Bio import SeqIO
 import argparse
 from utils.bert import get_config, BertModel, set_learned_params, BertForMaskedLM, visualize_attention, show_base_PCA, fix_params
 from module import Train_Module
-# from utils.alignment import Alignment
-from distutils.util import strtobool
 from dataload import DATA, MyDataset 
 import datetime
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.metrics.cluster import adjusted_rand_score
 import os
-import pickle
 import time
 from sklearn.metrics import normalized_mutual_info_score, adjusted_rand_score, completeness_score, homogeneity_score
 import torch.nn.functional as F
 from sklearn.cluster import MiniBatchKMeans, KMeans, AgglomerativeClustering, SpectralClustering 
-import sys
-import optuna
-import glob
-import logging
 import itertools  
 
-import RNA
-import forgi.graph.bulge_graph as fgb
 import alignment_C as Aln_C
 
-# 乱数のシードを設定
 random.seed(10)
 torch.manual_seed(1234)
 np.random.seed(1234)
@@ -48,31 +35,20 @@ parser.add_argument('--batch', '-b', type=int, default=20,
                     help='Number of batch size')
 parser.add_argument('--maskrate', '-m', type=float, default=0.0,
                     help='mask rate')
-parser.add_argument('--num_clustering', type=int, default=20,
-                    help='Number of cluster')
 parser.add_argument('--pretraining', '-pre', type=str, help='use pretrained weight')
 parser.add_argument('--outputweight', type=str, help='output path for weights')
-parser.add_argument('--preoptimizer', '-opt', type=str, help='use pretrained optimizer')
-parser.add_argument('--outputoptimizer', type=str, help='output path for weights')
-parser.add_argument('--clustering_method', type=str, default="KM", help='clustering method')
 parser.add_argument('--algorithm', type=str, default="global", help='algorithm method')
 parser.add_argument('--data_mlm', '-d', type=str, nargs='*', help='data for mlm training')
-parser.add_argument('--data_ssl', type=str, nargs='*', help='data for ssl training')
-parser.add_argument('--data_sfp', type=str, nargs='*', help='data for sfp training')
+# parser.add_argument('--data_sfp', type=str, nargs='*', help='data for sfp training')
 parser.add_argument('--data_mul', type=str, nargs='*', help='data for mul training')
 parser.add_argument('--data_alignment', type=str, nargs='*', help='data for alignment test')
-parser.add_argument('--data_clustering', type=str, nargs='*', help='data for clustering test')
-parser.add_argument('--data_showbase', type=str, nargs='*', help='data for base embedding')
-parser.add_argument("--optuna", action='store_true')
+# parser.add_argument('--data_clustering', type=str, nargs='*', help='data for clustering test')
+# parser.add_argument('--data_showbase', type=str, nargs='*', help='data for base embedding')
+parser.add_argument('--show_aln', action='store_true')
 
 args = parser.parse_args()
 batch_size = args.batch
 current_time = datetime.datetime.now()
-
-output_filename ='../job_result/output' + '{0:%m_%d_%H_%M}'.format(current_time) + '.txt'
-save_path1 = args.outputweight
-save_path2 = '../weights/model' + '{0:%m_%d_%H_%M}'.format(current_time) + '.pth'
-
 
 print("start...")
 class TRAIN:
@@ -82,7 +58,7 @@ class TRAIN:
         self.module = Train_Module(config)
     
     def model_device(self, model):
-        print("使用デバイス：", self.device)
+        print("device: ", self.device)
         print('-----start-------')
         model.to(self.device)
         if self.device == 'cuda':
@@ -93,7 +69,6 @@ class TRAIN:
         return model
 
     def train_MLM_SFP(self, model, optimizer, dl_MLM_SFP, num_epochs, task_type):
-        f = open(output_filename, 'a')
         for epoch in range(num_epochs):
             model.train()
             epoch_mlm_loss = 0.0
@@ -108,8 +83,6 @@ class TRAIN:
             t_epoch_start = time.time()
             t_iter_start = time.time()
             data_num = 0
-            prev_model = copy.deepcopy(model)
-            prev_optimizer = copy.deepcopy(optimizer)
             for batch in dl_MLM_SFP:
                 optimizer.zero_grad()
                 if task_type == "MLM" or task_type == "SFP":
@@ -170,18 +143,11 @@ class TRAIN:
             epoch_sfp_loss = epoch_sfp_loss  / len(dl_MLM_SFP.dataset)
             epoch_sfp_correct = epoch_sfp_correct / len(dl_MLM_SFP.dataset)
             epoch_mul_loss = epoch_mul_loss
-                        
-            
             print('Epoch {}/{} | MLM Loss: {:.4f} MLM Acc: {:.4f}| SFP Loss: {:.4f} SFP Acc: {:.4f}| MUL Loss: {:.4f}| time: {:.4f} sec.'.format(epoch+1, num_epochs,
                                                                         epoch_mlm_loss, epoch_mlm_correct, epoch_sfp_loss, epoch_sfp_correct, epoch_mul_loss, time.time() - t_epoch_start))
-            f.write('Epoch {}/{} | MLM Loss: {:.4f} MLM Acc: {:.4f}| SFP Loss: {:.4f} SFP Acc: {:.4f}|  MUL Loss: {:.4f}| time: {:.4f} sec.\n'.format(epoch+1, num_epochs,
-                                                                        epoch_mlm_loss, epoch_mlm_correct, epoch_sfp_loss, epoch_sfp_correct, epoch_mul_loss, time.time() - t_epoch_start))                                                            
             t_epoch_start = time.time()
-
-        f.close()
         if args.outputweight:
-            torch.save(model.state_dict(), save_path1)
-        torch.save(model.state_dict(), save_path2)
+            torch.save(model.state_dict(), args.outputweight + '{0:%m_%d_%H_%M}'.format(current_time))
         return model
 
     # make feature vector 
@@ -198,16 +164,6 @@ class TRAIN:
         encoding = np.concatenate(encoding, 0)
         return encoding 
 
-    def validation(self, predicted_hash, reference_hash):        
-        try:
-            TP = len(set(predicted_hash) & set(reference_hash))
-            precision = TP / len(predicted_hash)
-            recall = TP / len(reference_hash)
-            f1 = 2 * precision * recall/(precision + recall)
-        except ZeroDivisionError :
-            f1 = 0
-        return f1
-
     def validateOnCompleteTestData(self, test_loader, distance_matrix):
         # accuracy and rand index
         nmi = normalized_mutual_info_score
@@ -215,22 +171,17 @@ class TRAIN:
         homo = homogeneity_score
         com = completeness_score 
         true_labels = np.concatenate([d[1].cpu().numpy() for i,d in enumerate(test_loader)], 0)
-
         # km = KMeans(n_clusters=len(np.unique(true_labels)), n_init=20, n_jobs=4)
         # y_pred = km.fit_predict(distance_matrix)
-
         # ac = AgglomerativeClustering(n_clusters=len(np.unique(true_labels)), affinity='precomputed', linkage='single')
         # y_pred = ac.fit_predict(distance_matrix)
-
         sc=SpectralClustering(n_clusters=len(np.unique(true_labels)))
         y_pred=sc.fit(distance_matrix).labels_
-        
         print(' '*8 + '|==>  nmi: %.4f ,  ari: %.4f,  com: %.4f,  homo: %.4f  <==|'
                       % (nmi(true_labels, y_pred), ari(true_labels, y_pred), com(true_labels, y_pred), homo(true_labels, y_pred)))
         return ari(true_labels, y_pred)
 
     def align(self, model, dl):
-        f = open(output_filename, 'a')
         model.eval()
         pred_match = 0
         ref_match = 0
@@ -244,7 +195,7 @@ class TRAIN:
             prediction_scores0, prediction_scores1 = torch.split(prediction_scores, int(prediction_scores.shape[0]/2))
             encoded_layers0, encoded_layers1 = torch.split(encoded_layers, int(encoded_layers.shape[0]/2))
             z0_list, z1_list =  self.module.em(encoded_layers0, seq_len_0), self.module.em(encoded_layers1, seq_len_1)
-            len_TP, len_pred_match, len_ref_match = self.module.test_align(low_seq_0, low_seq_1, z0_list, z1_list, common_index_0, common_index_1, seq_len_0, seq_len_1)
+            len_TP, len_pred_match, len_ref_match = self.module.test_align(low_seq_0, low_seq_1, z0_list, z1_list, common_index_0, common_index_1, seq_len_0, seq_len_1, args.show_aln)
             TP += len_TP
             pred_match += len_pred_match
             ref_match += len_ref_match
@@ -252,9 +203,8 @@ class TRAIN:
         precision = TP /pred_match 
         recall = TP / ref_match
         f1 = 2 * precision * recall/(precision + recall)
-        print("alignment accuracy : ", f1)
-        f.write("alignment accuracy : {} \n".format(f1))
-        f.close()
+        if args.show_aln == False:
+            print("alignment accuracy : ", f1)
         return f1 
 
     def test(self, ds, test_loader, model):
@@ -287,9 +237,9 @@ def objective():
     model = BertForMaskedLM(config, model)
     if args.data_mlm:
         config.adam_lr = 0.0001
-    if args.data_sfp:
-        model = fix_params(model)
-        config.adam_lr = config.adam_lr * 0.5
+    # if args.data_sfp:
+    #     model = fix_params(model)
+    #     config.adam_lr = config.adam_lr * 0.5
     if args.data_mul:
         # model = fix_params(model)
         config.adam_lr = 1e-3
@@ -307,12 +257,9 @@ model, optimizer, train, config = objective()
 if args.data_mlm:
     dl_MLM = data.load_data_MLM_SFP(args.data_mlm)
     model = train.train_MLM_SFP(model, optimizer, dl_MLM, args.epoch, "MLM")
-elif args.data_ssl:
-    dl_SSL = data.load_data_SSL(args.data_ssl)
-    model = train.train_MLM_SFP(model, optimizer, dl_SSL, args.epoch, "SSL")
-elif args.data_sfp:
-    dl_SFP = data.load_data_MLM_SFP(args.data_sfp)
-    model = train.train_MLM_SFP(model, optimizer, dl_SFP, args.epoch, "SFP")
+# elif args.data_sfp:
+#     dl_SFP = data.load_data_MLM_SFP(args.data_sfp)
+#     model = train.train_MLM_SFP(model, optimizer, dl_SFP, args.epoch, "SFP")
 elif args.data_mul:
     dl_MUL = data.load_data_MUL(args.data_mul, "MUL")
     model = train.train_MLM_SFP(model, optimizer, dl_MUL, args.epoch, "MUL")
@@ -320,14 +267,16 @@ elif args.data_mul:
 if args.data_alignment: 
     dl_alignment = data.load_data_MUL(args.data_alignment, "MUL")
     alignment_accuracy = train.align(model, dl_alignment)
-elif args.data_clustering:
-    _, _, ds, test_dl = data.load_data_CLU(args.data_clustering) 
-    train.test(ds, test_dl, model)
+# elif args.data_clustering:
+#     _, _, ds, test_dl = data.load_data_CLU(args.data_clustering) 
+#     train.test(ds, test_dl, model)
 
-if args.data_showbase:
-    seqs, label, SS,  ds, test_dl  = data.load_data_SHOW(args.data_showbase) 
-    dbs = [RNA.fold(seq)[0] for seq in seqs]
-    substructure = list(itertools.chain.from_iterable([list(fgb.BulgeGraph.from_dotbracket(db).to_element_string().ljust(config.max_position_embeddings, 'X')) for db in dbs]))
-    features = train.make_feature(model, test_dl)
-    features = features.reshape(-1, features.shape[2])
-    show_base_PCA(features, label.reshape(-1), SS.reshape(-1), substructure)
+# if args.data_showbase:
+#     import RNA
+#     import forgi.graph.bulge_graph as fgb
+#     seqs, label, SS,  ds, test_dl  = data.load_data_SHOW(args.data_showbase) 
+#     dbs = [RNA.fold(seq)[0] for seq in seqs]
+#     substructure = list(itertools.chain.from_iterable([list(fgb.BulgeGraph.from_dotbracket(db).to_element_string().ljust(config.max_position_embeddings, 'X')) for db in dbs]))
+#     features = train.make_feature(model, test_dl)
+#     features = features.reshape(-1, features.shape[2])
+#     show_base_PCA(features, label.reshape(-1), SS.reshape(-1), substructure)

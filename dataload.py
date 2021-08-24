@@ -15,7 +15,6 @@ class DATA:
         self.maskrate = args.maskrate 
         self.batch_size = args.batch
 
-    # fasta fileの読み込み
     def load_data_MLM_SFP(self, data_sets):
         families = []
         gapped_seqs = []
@@ -29,7 +28,7 @@ class DATA:
                     seqs.append(seq)
                     families.append(i)
                     gapped_seqs.append(gapped_seq)
-        gapped_seqs = np.tile(onehot_seq(gapped_seqs, self.max_length*2), (self.mag, 1))
+        gapped_seqs = np.tile(onehot_seq(gapped_seqs, self.max_length*5), (self.mag, 1))
         family = np.tile(np.array(families), self.mag)
         seqs_len = np.tile(np.array([len(i) for i in seqs]), self.mag)   
         k = 1   
@@ -63,11 +62,9 @@ class DATA:
                     seqs_len.extend([len(seq)] * num)
                     families.extend([i] * num)
                     gapped_seqs.extend([gapped_seq] * num)
-                else:
-                    print(seq)
                 if train_type == "ALN" and j == 0:
                     break
-        gapped_seqs = onehot_seq(gapped_seqs, self.max_length*2)
+        gapped_seqs = onehot_seq(gapped_seqs, self.max_length*5)
         family = np.array(families)
         seqs_len = np.array(seqs_len)
         # PAD 0, mask 1, A 2, U 3, G 4 ,C 5, 
@@ -96,9 +93,7 @@ class DATA:
                     families.append(i)
                     gapped_seqs.append(gapped_seq)
                     SS.append(ss)
-                else:
-                    print(seq)
-        gapped_seqs = np.tile(onehot_seq(gapped_seqs, self.max_length*2), (self.mag, 1))
+        gapped_seqs = np.tile(onehot_seq(gapped_seqs, self.max_length*5), (self.mag, 1))
         SS = np.tile(secondary_num(SS, self.max_length), (self.mag, 1))
         family = np.tile(np.array(families), self.mag)
         seqs_len = np.tile(np.array([len(i) for i in seqs]), self.mag)
@@ -135,9 +130,7 @@ class DATA:
                     families.append(i)
                     gapped_seqs.append(gapped_seq)
                     SS.append(ss)
-                else:
-                    print(seq)
-        gapped_seqs = np.tile(onehot_seq(gapped_seqs, self.max_length*2), (self.mag, 1))
+        gapped_seqs = np.tile(onehot_seq(gapped_seqs, self.max_length*5), (self.mag, 1))
         SS = np.tile(secondary_num(SS, self.max_length), (self.mag, 1))
         family = np.tile(np.array(families), self.mag)
         seqs_len = np.tile(np.array([len(i) for i in seqs]), self.mag)
@@ -169,7 +162,7 @@ class DATA:
                     seqs.append(seq)
                     families.append(i)
                     gapped_seqs.append(gapped_seq)
-        gapped_seqs = np.tile(onehot_seq(gapped_seqs, self.max_length*2), (self.mag, 1))
+        gapped_seqs = np.tile(onehot_seq(gapped_seqs, self.max_length*5), (self.mag, 1))
         family = np.tile(np.array(families), self.mag)
         seqs_len = np.tile(np.array([len(i) for i in seqs]), self.mag)   
         k = 1   
@@ -191,7 +184,7 @@ class DATA:
                 indices = np.where(family == family[i])[0]
             else:
                 indices = np.where(family != family[i])[0]
-            # 自分自身を削除
+            # eliminate himself 
             indices = np.delete(indices, np.where(indices == i)[0])
             if indices.size != 0:
                 index = np.random.choice(indices, 1, replace=False)
@@ -222,7 +215,7 @@ class DATA:
     def split_dataset(self, ds, train_size, ds1=None):
         n_samples = len(ds)
         subset_indices = random.sample(range(n_samples), k=train_size)
-        # shuffleしてから分割してくれる.
+        # separate after shuffle
         train_dataset = Subset(ds, subset_indices)
         if ds1:
             train_dataset1 = Subset(ds1, subset_indices)
@@ -308,7 +301,7 @@ def convert(seqs, kmer_dict, max_length):
     return seq_num
 
 def make_dict(k=3):
-    # 文字列to数字の辞書作り
+    # seq to num 
     l = ["A", "U", "G", "C"]
     kmer_list = [''.join(v) for v in list(itertools.product(l, repeat=k))]
     kmer_list.insert(0, "MASK")

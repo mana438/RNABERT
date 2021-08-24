@@ -28,11 +28,11 @@ Pre-train consists of two tasks, SFP and SAL.The SFP task trains with multiple f
 
 #### 2.2 Model Training
 
-The MLM task specifies the percentage of nucleotides to be masked "--maskrate" and the number of mask patterns "mag". Adjust the batch size according to the memory size of your GPU.
+The MLM task specifies the percentage of nucleotides to be masked "--maskrate" and the number of mask patterns "--mag". Adjust the batch size according to the memory size of your GPU.
 ```
 export TRAIN_FILE=sample/mlm/sample.fa
 export PRE_WEIGHT= #optional
-export OUTPUT_WEIGHT=
+export OUTPUT_WEIGHT=/path/to/output/weight
 
 python MLM_SFP.py 
     --pretraining ${PRE_WEIGHT} \
@@ -43,14 +43,29 @@ python MLM_SFP.py
     --mag 3 \
     --maskrate 0.2 \
 ```
+The SAL task takes multiple alignments per family as input, and "--mag" can be used to specify how many pairwise alignments should be generated for a single sequence.
+```
+export TRAIN_FILE=sample/sal/sample.afa.txt
+export PRE_WEIGHT= #optional
+export OUTPUT_WEIGHT=/path/to/output/weight
+
+python MLM_SFP.py 
+    --pretraining ${PRE_WEIGHT} \
+    --outputweight ${OUTPUT_WEIGHT} \
+    --data_mul ${TRAIN_FILE} \
+    --epoch 10 \
+    --batch 40 \
+    --mag 5 \
+```
+
 
 
 #### 2.3 Download pre-trained DNABERT
 
-[RNABERT](https://northwestern.box.com/s/s492dj5g2wwotdh40v9uv5gwikqi246q)
+[RNABERT](https://drive.google.com/file/d/1FqE_c0X6OA75AzYI8ChpB7WH8Oq6TRJS/view?usp=sharing)
 
 Download the pre-trained model in to a directory. 
-
+This model has been created using a partial Rfam dataset. Trained model using the full Rfam seed alignment dataset will be available soon.
 
 
 ## 3. Prediction
@@ -59,7 +74,7 @@ After the model is fine-tuned, we can get predictions by running
 
 ```
 export PRED_FILE=sample/sal/sample.fa
-export PRE_WEIGHT= 
+export PRE_WEIGHT=/path/to/pretrained/weight
 
 python MLM_SFP.py 
     --pretraining ${PRE_WEIGHT} \
