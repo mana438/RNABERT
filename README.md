@@ -60,7 +60,7 @@ python MLM_SFP.py
 
 
 
-#### 2.3 Download pre-trained DNABERT
+#### 2.3 Download pre-trained RNABERT
 
 [RNABERT](https://drive.google.com/file/d/1FqE_c0X6OA75AzYI8ChpB7WH8Oq6TRJS/view?usp=sharing)
 
@@ -73,7 +73,7 @@ This model has been created using a partial Rfam dataset. Trained model using th
 After the model is fine-tuned, we can get predictions by running
 
 ```
-export PRED_FILE=sample/sal/sample.fa
+export PRED_FILE=sample/aln/sample.raw.fa
 export PRE_WEIGHT=/path/to/pretrained/weight
 
 python MLM_SFP.py 
