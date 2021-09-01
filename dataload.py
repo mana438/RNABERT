@@ -201,7 +201,6 @@ class DATA:
             A1 = np.array([np.pad(i, ((0, self.max_length-len(i)))) for i in A1])
             B1 = [i[np.where(i != 0)]-1 for i in B1]
             B1 = np.array([np.pad(i, ((0, self.max_length-len(i)))) for i in B1])
-
         new_low_seq = low_seq[new_index, :]
         new_masked_seq = masked_seq[new_index, :]
         if gapped_seqs is not None and SS is not None:

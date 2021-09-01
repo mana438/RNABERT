@@ -42,7 +42,7 @@ parser.add_argument('--data_mlm', '-d', type=str, nargs='*', help='data for mlm 
 # parser.add_argument('--data_sfp', type=str, nargs='*', help='data for sfp training')
 parser.add_argument('--data_mul', type=str, nargs='*', help='data for mul training')
 parser.add_argument('--data_alignment', type=str, nargs='*', help='data for alignment test')
-# parser.add_argument('--data_clustering', type=str, nargs='*', help='data for clustering test')
+parser.add_argument('--data_clustering', type=str, nargs='*', help='data for clustering test')
 # parser.add_argument('--data_showbase', type=str, nargs='*', help='data for base embedding')
 parser.add_argument('--show_aln', action='store_true')
 
@@ -164,19 +164,38 @@ class TRAIN:
         encoding = np.concatenate(encoding, 0)
         return encoding 
 
-    def validateOnCompleteTestData(self, test_loader, distance_matrix):
+    def validateOnCompleteTestData(self, test_loader, simirality_matrix):
         # accuracy and rand index
         nmi = normalized_mutual_info_score
         ari = adjusted_rand_score
         homo = homogeneity_score
         com = completeness_score 
         true_labels = np.concatenate([d[1].cpu().numpy() for i,d in enumerate(test_loader)], 0)
+        
         # km = KMeans(n_clusters=len(np.unique(true_labels)), n_init=20, n_jobs=4)
-        # y_pred = km.fit_predict(distance_matrix)
-        # ac = AgglomerativeClustering(n_clusters=len(np.unique(true_labels)), affinity='precomputed', linkage='single')
-        # y_pred = ac.fit_predict(distance_matrix)
+        # y_pred = km.fit_predict(simirality_matrix)
+
+        # ac = AgglomerativeClustering(n_clusters=len(np.unique(true_labels)), affinity='precomputed', linkage='average')
+        # ac = AgglomerativeClustering(n_clusters=None,affinity='precomputed', linkage='average', distance_threshold=0.45)
+        # y_pred = ac.fit_predict(1+ (-1 * simirality_matrix))
+
+        # y_pred = y_pred.tolist()
+        # true_labels = true_labels.tolist()
+        # import collections
+        # c = collections.Counter(y_pred)
+        # y_pred_new = []
+        # true_labels_new = []
+        # for i, j in zip(y_pred, true_labels):
+        #     if c[i] >= 2:
+        #         y_pred_new.append(i)
+        #         true_labels_new.append(j)
+        # print(len(y_pred_new))
+        # y_pred = np.array(y_pred_new)
+        # true_labels = np.array(true_labels_new)
+
         sc=SpectralClustering(n_clusters=len(np.unique(true_labels)))
-        y_pred=sc.fit(distance_matrix).labels_
+        y_pred=sc.fit(simirality_matrix).labels_
+
         print(' '*8 + '|==>  nmi: %.4f ,  ari: %.4f,  com: %.4f,  homo: %.4f  <==|'
                       % (nmi(true_labels, y_pred), ari(true_labels, y_pred), com(true_labels, y_pred), homo(true_labels, y_pred)))
         return ari(true_labels, y_pred)
@@ -190,8 +209,10 @@ class TRAIN:
             low_seq_0, masked_seq_0, family_0, seq_len_0, low_seq_1, masked_seq_1, family_1, seq_len_1, common_index_0, common_index_1 = batch
             low_seq_0 = low_seq_0.to(self.device)
             low_seq_1 = low_seq_1.to(self.device)
-            low_seq = torch.cat((low_seq_0, low_seq_1), axis=0) 
+            low_seq = torch.cat((low_seq_0, low_seq_1), axis=0)
+
             prediction_scores, prediction_scores_ss, encoded_layers =  model(low_seq)
+            
             prediction_scores0, prediction_scores1 = torch.split(prediction_scores, int(prediction_scores.shape[0]/2))
             encoded_layers0, encoded_layers1 = torch.split(encoded_layers, int(encoded_layers.shape[0]/2))
             z0_list, z1_list =  self.module.em(encoded_layers0, seq_len_0), self.module.em(encoded_layers1, seq_len_1)
@@ -210,7 +231,7 @@ class TRAIN:
     def test(self, ds, test_loader, model):
         model.eval()
         data_num = len(test_loader.dataset)
-        distance_matrix = []
+        simirality_matrix = []
         for i in range(data_num):
             single_seq = MyDataset("CLU", np.tile(ds.low_seq[i],(data_num,1)), np.tile(ds.low_seq[i],(data_num,1)),np.tile(ds.family[i],(data_num,1)), np.tile(ds.seq_len[i], data_num)) 
             single_seq = torch.utils.data.DataLoader(single_seq, batch_size, shuffle=False)
@@ -226,8 +247,8 @@ class TRAIN:
                 z0_list, z1_list =  self.module.em(encoded_layers0, seq_len_0), self.module.em(encoded_layers1, seq_len_1)
                 _, logits = self.module.match(z0_list, z1_list)
                 low.append(torch.squeeze(logits).to('cpu').detach().numpy().copy())
-            distance_matrix.append(np.concatenate(low, 0) * -1)
-        currentAcc = self.validateOnCompleteTestData(test_loader, np.array(distance_matrix))
+            simirality_matrix.append(np.concatenate(low, 0))
+        currentAcc = self.validateOnCompleteTestData(test_loader, np.array(simirality_matrix))
         return currentAcc
 
 def objective():
@@ -236,13 +257,13 @@ def objective():
     model = BertModel(config)
     model = BertForMaskedLM(config, model)
     if args.data_mlm:
-        config.adam_lr = 0.0001
+        config.adam_lr = 1e-4
     # if args.data_sfp:
     #     model = fix_params(model)
     #     config.adam_lr = config.adam_lr * 0.5
     if args.data_mul:
         # model = fix_params(model)
-        config.adam_lr = 1e-3
+        config.adam_lr = 1e-4
     model = train.model_device(model)
     if args.pretraining:
         model = set_learned_params(model, args.pretraining)
@@ -267,9 +288,9 @@ elif args.data_mul:
 if args.data_alignment: 
     dl_alignment = data.load_data_MUL(args.data_alignment, "MUL")
     alignment_accuracy = train.align(model, dl_alignment)
-# elif args.data_clustering:
-#     _, _, ds, test_dl = data.load_data_CLU(args.data_clustering) 
-#     train.test(ds, test_dl, model)
+elif args.data_clustering:
+    _, _, ds, test_dl = data.load_data_CLU(args.data_clustering) 
+    train.test(ds, test_dl, model)
 
 # if args.data_showbase:
 #     import RNA

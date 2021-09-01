@@ -23,7 +23,7 @@ python setup.py install
 
 #### 2.1 Data processing
 
-Pre-train consists of two tasks, SFP and SAL.The SFP task trains with multiple files for each RNA family. SAL tasks use family-specific multiple alignments for training. If you want to train with your own data, see the template data at /sample/mlm/ for MLM task and /sample/sal/ for SAL task. RNABERT requires that RNA sequences be represented in fasta format. All nucleotides are represented by A, U (T), G, C. 
+Pre-train consists of two tasks, MLM and SAL. The SAL tasks use family-specific multiple alignments for training. If you want to train with your own data, see the template data at /sample/mlm/ for MLM task and /sample/sal/ for SAL task. RNABERT requires that RNA sequences be represented in fasta format. All nucleotides are represented by A, U (T), G, C. 
 
 
 #### 2.2 Model Training
@@ -80,4 +80,5 @@ python MLM_SFP.py
     --pretraining ${PRE_WEIGHT} \
     --data_alignment ${PRED_FILE} \
     --batch 40 \
+    --show_aln
 ```

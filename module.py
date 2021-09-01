@@ -145,7 +145,7 @@ class Train_Module:
 		for z0, z1 in zip(z0_list, z1_list):
 			# cos similarity
 			match_score = nn.CosineSimilarity(dim=2, eps=1e-6)(z0.unsqueeze(1).repeat(1, z1.shape[0],1) , z1.unsqueeze(0).repeat(z0.shape[0], 1,1))
-			s = 1.5 * match_score
+			s = 1.3 * match_score
 			# L1 distance
 			# s = -torch.sum(torch.abs(z0.unsqueeze(1)-z1), -1)
 			# match_score = torch.exp(s)
