@@ -113,6 +113,7 @@ class DATA:
         return dl_MLM_SFP_ALIGN
 
     def load_data_SHOW(self, data_sets):
+        import forgi.graph.bulge_graph as fgb
         families = []
         gapped_seqs = []
         seqs = []
@@ -126,12 +127,18 @@ class DATA:
                 seq = gapped_seq.replace('-', '')
                 ss = ''.join([cons_SS[i] for i, s in enumerate( list(gapped_seq)) if s != "-"])
                 if set(seq) <= set(['A', 'T', 'G', 'C', 'U']) and len(list(seq)) < self.max_length:
-                    seqs.append(seq)
-                    families.append(i)
-                    gapped_seqs.append(gapped_seq)
-                    SS.append(ss)
+                    try:
+                        fgb.BulgeGraph.from_dotbracket(ss)
+                    except:
+                        print('Too many closing brackets') 
+                    else:
+                        seqs.append(seq)
+                        families.append(i)
+                        gapped_seqs.append(gapped_seq)
+                        SS.append(ss)
         gapped_seqs = np.tile(onehot_seq(gapped_seqs, self.max_length*5), (self.mag, 1))
-        SS = np.tile(secondary_num(SS, self.max_length), (self.mag, 1))
+        # SS = np.tile(secondary_num(SS, self.max_length), (self.mag, 1))
+        SS = list(itertools.chain.from_iterable([list(fgb.BulgeGraph.from_dotbracket(db).to_element_string().ljust(440, 'X')) for db in SS]))
         family = np.tile(np.array(families), self.mag)
         seqs_len = np.tile(np.array([len(i) for i in seqs]), self.mag)
         k = 1   

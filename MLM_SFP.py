@@ -39,11 +39,10 @@ parser.add_argument('--pretraining', '-pre', type=str, help='use pretrained weig
 parser.add_argument('--outputweight', type=str, help='output path for weights')
 parser.add_argument('--algorithm', type=str, default="global", help='algorithm method')
 parser.add_argument('--data_mlm', '-d', type=str, nargs='*', help='data for mlm training')
-# parser.add_argument('--data_sfp', type=str, nargs='*', help='data for sfp training')
 parser.add_argument('--data_mul', type=str, nargs='*', help='data for mul training')
 parser.add_argument('--data_alignment', type=str, nargs='*', help='data for alignment test')
 parser.add_argument('--data_clustering', type=str, nargs='*', help='data for clustering test')
-# parser.add_argument('--data_showbase', type=str, nargs='*', help='data for base embedding')
+parser.add_argument('--data_showbase', type=str, nargs='*', help='data for base embedding')
 parser.add_argument('--show_aln', action='store_true')
 
 args = parser.parse_args()
@@ -63,7 +62,6 @@ class TRAIN:
         model.to(self.device)
         if self.device == 'cuda':
             model = torch.nn.DataParallel(model) # make parallel
-        # torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
         return model
@@ -210,9 +208,12 @@ class TRAIN:
             low_seq_0 = low_seq_0.to(self.device)
             low_seq_1 = low_seq_1.to(self.device)
             low_seq = torch.cat((low_seq_0, low_seq_1), axis=0)
-
-            prediction_scores, prediction_scores_ss, encoded_layers =  model(low_seq)
             
+            start = time.time()
+            prediction_scores, prediction_scores_ss, encoded_layers =  model(low_seq)
+            elapsed_time = time.time() - start
+            print ("elapsed_time:{0}".format(elapsed_time) + "[sec]")
+
             prediction_scores0, prediction_scores1 = torch.split(prediction_scores, int(prediction_scores.shape[0]/2))
             encoded_layers0, encoded_layers1 = torch.split(encoded_layers, int(encoded_layers.shape[0]/2))
             z0_list, z1_list =  self.module.em(encoded_layers0, seq_len_0), self.module.em(encoded_layers1, seq_len_1)
@@ -281,7 +282,7 @@ if args.data_mlm:
 # elif args.data_sfp:
 #     dl_SFP = data.load_data_MLM_SFP(args.data_sfp)
 #     model = train.train_MLM_SFP(model, optimizer, dl_SFP, args.epoch, "SFP")
-elif args.data_mul:
+if args.data_mul:
     dl_MUL = data.load_data_MUL(args.data_mul, "MUL")
     model = train.train_MLM_SFP(model, optimizer, dl_MUL, args.epoch, "MUL")
 
@@ -292,12 +293,8 @@ elif args.data_clustering:
     _, _, ds, test_dl = data.load_data_CLU(args.data_clustering) 
     train.test(ds, test_dl, model)
 
-# if args.data_showbase:
-#     import RNA
-#     import forgi.graph.bulge_graph as fgb
-#     seqs, label, SS,  ds, test_dl  = data.load_data_SHOW(args.data_showbase) 
-#     dbs = [RNA.fold(seq)[0] for seq in seqs]
-#     substructure = list(itertools.chain.from_iterable([list(fgb.BulgeGraph.from_dotbracket(db).to_element_string().ljust(config.max_position_embeddings, 'X')) for db in dbs]))
-#     features = train.make_feature(model, test_dl)
-#     features = features.reshape(-1, features.shape[2])
-#     show_base_PCA(features, label.reshape(-1), SS.reshape(-1), substructure)
+if args.data_showbase:
+    seqs, label, SS,  ds, test_dl  = data.load_data_SHOW(args.data_showbase) 
+    features = train.make_feature(model, test_dl)
+    features = features.reshape(-1, features.shape[2])
+    show_base_PCA(features, label.reshape(-1), SS)

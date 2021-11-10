@@ -122,13 +122,14 @@ class visualize_attention():
         return html
 
 
-def show_base_PCA(features, targets, SS, substructure):
+def show_base_PCA(features, targets, substructure):
     # from matplotlib import pyplot as plt
-    number = 4000
+    number = 40000
     # 1:"MASK"
     basedict = {0:"PAD", 2:"A", 3:"U", 4:"G", 5:"C"}
-    ssdict_pred = {"s":"stem pair", "i":"interior loop", "h":"hairpin loop", "m":"multiloop", "f":"external loop(5)", "t":"external loop(3)"}
-    ssdict_ref = {0:"unknown or pad", 1: "external loop", 2:"basepairs in simple stem loops", 3:"basepairs enclosing multifurcations", 4:"pseudoknot", 5:"Bulges and interior loops", 6:"Hairpin loops", 7:"Multibranch loops"}
+    ssdict_ref = {"s":"stem pair", "i":"Bulges and interior loop", "h":"hairpin loop", "m":"multiloop", "f":"external loop(5)", "t":"external loop(3)"}
+    # ssdict_ref = {0:"unknown or pad", 1: "external loop", 2:"basepairs in simple stem loops", 3:"basepairs enclosing multifurcations", 4:"pseudoknot", 5:"Bulges and interior loops", 6:"Hairpin loops", 7:"Multibranch loops"}
+    # ssdict_ref = {0:"unknown or pad", 1: "external loop", 2:"stacking", 3:"basepairs enclosing multifurcation", 4:"pseudoknot", 5:"Bulges and interior loop", 6:"Hairpin loop", 7:"Multibranch loop"}
     transformed = TSNE(n_components=2, perplexity=30.0).fit_transform(features[0:number])
     targets = targets[0:number]
     for label in np.unique(targets)[1:]:
@@ -141,10 +142,10 @@ def show_base_PCA(features, targets, SS, substructure):
     plt.savefig("../png/result_{}_base.png".format(int(time.time())))
     plt.close()
     
-    substructure = SS.tolist()
+    # substructure = SS.tolist()
     substructure = substructure[0:number]
     for label in list(set(substructure)):
-        if not label == 0:
+        if not label == 'X':
             index = [i for i, x in enumerate(substructure) if x == label]
             plt.scatter(transformed[index, 0],
                         transformed[index, 1], label=ssdict_ref[label])
@@ -158,7 +159,7 @@ def show_base_PCA(features, targets, SS, substructure):
     for label1 in np.unique(targets)[1:]:
         transformed = TSNE(n_components=2).fit_transform(features[0:number][targets == label1])
         for label2 in list(set(substructure)):
-            if not label2 == 0:
+            if not label2 == 'X':
                 index = [i for i, x in enumerate(list(np.array(substructure)[targets == label1])) if x == label2]
                 plt.scatter(transformed[index, 0],
                             transformed[index, 1], label=ssdict_ref[label2])
