@@ -26,7 +26,7 @@ python setup.py install
 Pre-train consists of two tasks, MLM and SAL. The SAL tasks use family-specific multiple alignments for training. If you want to train with your own data, see the template data at /sample/mlm/ for MLM task and /sample/sal/ for SAL task. RNABERT requires that RNA sequences be represented in fasta format. All nucleotides are represented by A, U (T), G, C. 
 You can download the data I used for the experiment from the link below.
 
-[DATASETS](https://drive.google.com/file/d/1EmlraA2qBD553fZKSkHPHUXzHEGZfiOs/view?usp=sharing)
+[DATASETS](https://drive.google.com/file/d/1jJa6_TOYNrJj5tN-8t4mL2IUDoQprtzV/view?usp=sharing)
 
 
 #### 2.2 Model Training

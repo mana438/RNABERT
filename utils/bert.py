@@ -124,10 +124,17 @@ class visualize_attention():
 
 def show_base_PCA(features, targets, substructure):
     # from matplotlib import pyplot as plt
-    number = 40000
+    number = 1000
+    x = int(random.randint(0,1000))
+    x = 19
     # 1:"MASK"
     basedict = {0:"PAD", 2:"A", 3:"U", 4:"G", 5:"C"}
-    ssdict_ref = {"s":"stem pair", "i":"Bulges and interior loop", "h":"hairpin loop", "m":"multiloop", "f":"external loop(5)", "t":"external loop(3)"}
+    # ssdict_ref = {"s":"base pair in stem", "i":"Bulges and interior loop", "h":"hairpin loop", "m":"multiloop", "f":"external loop(5)", "t":"external loop(3)"}
+    ssdict_ref = {"s":"base pair in stem", "h":"hairpin loop", "t":"external loop"}
+    for i, ssub in enumerate(substructure):
+        if ssub == "i" or ssub == "m" or ssub == "f":
+            substructure[i] = "h"
+
     # ssdict_ref = {0:"unknown or pad", 1: "external loop", 2:"basepairs in simple stem loops", 3:"basepairs enclosing multifurcations", 4:"pseudoknot", 5:"Bulges and interior loops", 6:"Hairpin loops", 7:"Multibranch loops"}
     # ssdict_ref = {0:"unknown or pad", 1: "external loop", 2:"stacking", 3:"basepairs enclosing multifurcation", 4:"pseudoknot", 5:"Bulges and interior loop", 6:"Hairpin loop", 7:"Multibranch loop"}
     transformed = TSNE(n_components=2, perplexity=30.0).fit_transform(features[0:number])
@@ -139,7 +146,7 @@ def show_base_PCA(features, targets, substructure):
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0, fontsize=18)
     plt.subplots_adjust(right=0.7)
     plt.show()
-    plt.savefig("../png/result_{}_base.png".format(int(time.time())))
+    plt.savefig("../png/{}_result_{}_base.png".format(x, int(time.time())), dpi=300)
     plt.close()
     
     # substructure = SS.tolist()
@@ -153,7 +160,7 @@ def show_base_PCA(features, targets, substructure):
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0, fontsize=6)
     plt.subplots_adjust(right=0.7)
     plt.show()
-    plt.savefig("../png/result_{}_ss_ALL.png".format(int(time.time())))
+    plt.savefig("../png/{}_result_{}_ss_ALL.png".format(x, int(time.time())), dpi=300)
     plt.close()
 
     for label1 in np.unique(targets)[1:]:
@@ -167,7 +174,7 @@ def show_base_PCA(features, targets, substructure):
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0, fontsize=6)
         plt.subplots_adjust(right=0.7)
         plt.show()
-        plt.savefig("../png/result_{}_ss_{}.png".format(int(time.time()), basedict[label1]))
+        plt.savefig("../png/{}_result_{}_ss_{}.png".format(x, int(time.time()), basedict[label1]), dpi=300)
         plt.close()
 
 
@@ -510,7 +517,7 @@ class BertPredictionHeadTransform(nn.Module):
 
     def forward(self, hidden_states):
         hidden_states = self.dense(hidden_states)
-        hidden_states = self.transform_act_fn(hidden_states)
+        # hidden_states = self.transform_act_fn(hidden_states)
         hidden_states = self.LayerNorm(hidden_states)
         return hidden_states
 

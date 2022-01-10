@@ -212,7 +212,7 @@ class TRAIN:
             start = time.time()
             prediction_scores, prediction_scores_ss, encoded_layers =  model(low_seq)
             elapsed_time = time.time() - start
-            print ("elapsed_time:{0}".format(elapsed_time) + "[sec]")
+            # print ("elapsed_time:{0}".format(elapsed_time) + "[sec]")
 
             prediction_scores0, prediction_scores1 = torch.split(prediction_scores, int(prediction_scores.shape[0]/2))
             encoded_layers0, encoded_layers1 = torch.split(encoded_layers, int(encoded_layers.shape[0]/2))
@@ -222,11 +222,11 @@ class TRAIN:
             pred_match += len_pred_match
             ref_match += len_ref_match
 
-        precision = TP /pred_match 
-        recall = TP / ref_match
-        f1 = 2 * precision * recall/(precision + recall)
+        PPV = TP /pred_match 
+        sens = TP / ref_match
+        f1 = 2 * PPV * sens/(PPV + sens)
         if args.show_aln == False:
-            print("alignment accuracy : ", f1)
+            print("alignment accuracy : ", f1, "sens : ", sens, "PPV : ", PPV)
         return f1 
 
     def test(self, ds, test_loader, model):
@@ -267,7 +267,7 @@ def objective():
         config.adam_lr = 1e-4
     model = train.model_device(model)
     if args.pretraining:
-        model = set_learned_params(model, args.pretraining)
+        model.load_state_dict(torch.load(args.pretraining))
     optimizer = optim.AdamW([{'params': model.parameters(), 'lr': config.adam_lr}])
     return model , optimizer, train, config
 
