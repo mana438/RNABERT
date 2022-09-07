@@ -85,3 +85,15 @@ python MLM_SFP.py
     --batch 40 \
     --show_aln
 ```
+
+## 3. Earn embeddings
+
+To obtain the embedding vector for the RNA sequence, run 
+
+```
+python MLM_SFP.py 
+    --pretraining ${PRE_WEIGHT} \
+    --data_embedding ${PRED_FILE} \
+    --embedding_output ${OUTPUT_FILE} \
+    --batch 40 \
+```

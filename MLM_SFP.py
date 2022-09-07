@@ -43,6 +43,8 @@ parser.add_argument('--data_mul', type=str, nargs='*', help='data for mul traini
 parser.add_argument('--data_alignment', type=str, nargs='*', help='data for alignment test')
 parser.add_argument('--data_clustering', type=str, nargs='*', help='data for clustering test')
 parser.add_argument('--data_showbase', type=str, nargs='*', help='data for base embedding')
+parser.add_argument('--data_embedding', type=str, nargs='*', help='data for base embedding')
+parser.add_argument('--embedding_output', type=str, nargs='*', help='output file for base embedding')
 parser.add_argument('--show_aln', action='store_true')
 
 args = parser.parse_args()
@@ -146,10 +148,11 @@ class TRAIN:
             t_epoch_start = time.time()
         if args.outputweight:
             torch.save(model.state_dict(), args.outputweight + '{0:%m_%d_%H_%M}'.format(current_time))
+            torch.save(model.state_dict(), args.outputweight)
         return model
 
     # make feature vector 
-    def make_feature(self, model, dataloader):
+    def make_feature(self, model, dataloader, seqs):
         model.eval()
         torch.backends.cudnn.benchmark = True
         batch_size = dataloader.batch_size
@@ -160,7 +163,12 @@ class TRAIN:
             prediction_scores, prediction_scores_ss, encoded_layers =  model(inputs)
             encoding.append(encoded_layers.cpu().detach().numpy())
         encoding = np.concatenate(encoding, 0)
-        return encoding 
+
+        embedding = []
+        for e, seq in zip(encoding, seqs):
+            embedding.append(e[:len(seq)].tolist())
+
+        return embedding 
 
     def validateOnCompleteTestData(self, test_loader, simirality_matrix):
         # accuracy and rand index
@@ -258,7 +266,7 @@ def objective():
     model = BertModel(config)
     model = BertForMaskedLM(config, model)
     if args.data_mlm:
-        config.adam_lr = 1e-4
+        config.adam_lr = 2e-4
     # if args.data_sfp:
     #     model = fix_params(model)
     #     config.adam_lr = config.adam_lr * 0.5
@@ -298,3 +306,11 @@ if args.data_showbase:
     features = train.make_feature(model, test_dl)
     features = features.reshape(-1, features.shape[2])
     show_base_PCA(features, label.reshape(-1), SS)
+
+if args.data_embedding:
+    seqs, label, test_dl  = data.load_data_EMB(args.data_embedding) 
+    features = train.make_feature(model, test_dl, seqs)
+    for i, data_set in enumerate(args.embedding_output):
+        with open(data_set, 'w') as f:
+            for d in features:
+                f.write(str(d) + '\n')

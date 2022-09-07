@@ -26,8 +26,8 @@ from sklearn.cluster import DBSCAN
 from sklearn.cluster import SpectralClustering
 from sklearn.cluster import AgglomerativeClustering
 import sys
-sys.path.append("/home/aca10223gf/workplace/tools/ViennaRNA/lib/python3.6/site-packages/")
-import RNA
+# sys.path.append("/home/aca10223gf/workplace/tools/ViennaRNA/lib/python3.6/site-packages/")
+# import RNA
 
 DEFAULT_ATTRIBUTES = (
     'index',
@@ -500,6 +500,7 @@ class MaskedWordPredictions(nn.Module):
             config.vocab_size)) 
 
     def forward(self, hidden_states):
+        hidden_states =self.transform(hidden_states)
         hidden_states = self.decoder(hidden_states) + self.bias
 
         return hidden_states

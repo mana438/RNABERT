@@ -45,6 +45,34 @@ class DATA:
         dl_MLM_SFP = torch.utils.data.DataLoader(ds_MLM_SFP, self.batch_size, shuffle=True)
         return dl_MLM_SFP
 
+    def load_data_EMB(self, data_sets):
+        families = []
+        gapped_seqs = []
+        seqs = []
+        for i, data_set in enumerate(data_sets):
+            for record in SeqIO.parse(data_set, "fasta"):
+                gapped_seq = str(record.seq).upper()
+                gapped_seq = gapped_seq.replace("T", "U")
+                seq = gapped_seq.replace('-', '')
+                if set(seq) <= set(['A', 'T', 'G', 'C', 'U']) and len(list(seq)) < self.max_length:
+                    seqs.append(seq)
+                    families.append(i)
+                    gapped_seqs.append(gapped_seq)
+        gapped_seqs = np.tile(onehot_seq(gapped_seqs, self.max_length*5), (self.mag, 1))
+        family = np.tile(np.array(families), self.mag)
+        seqs_len = np.tile(np.array([len(i) for i in seqs]), self.mag)   
+        k = 1   
+        kmer_seqs = kmer(seqs, k)
+        masked_seq, low_seq = mask(kmer_seqs, rate = 0, mag = self.mag)
+        kmer_dict = make_dict(k)
+        swap_kmer_dict = {v: k for k, v in kmer_dict.items()}
+        masked_seq = np.array(convert(masked_seq, kmer_dict, self.max_length))
+        low_seq = np.array(convert(low_seq, kmer_dict, self.max_length))
+
+        transform = transforms.Compose([transforms.ToTensor()])
+        ds_MLM_SFP_ALIGN = MyDataset("SHOW", low_seq, masked_seq, family, seqs_len)
+        dl_MLM_SFP_ALIGN = torch.utils.data.DataLoader(ds_MLM_SFP_ALIGN, self.batch_size, shuffle=False)
+        return seqs, low_seq, dl_MLM_SFP_ALIGN 
 
     def load_data_MUL(self, data_sets, train_type):
         families = []
