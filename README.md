@@ -65,11 +65,10 @@ python MLM_SFP.py
 
 #### 2.3 Download pre-trained RNABERT
 
-[RNABERT](https://drive.google.com/file/d/1FqE_c0X6OA75AzYI8ChpB7WH8Oq6TRJS/view?usp=sharing)
+[RNABERT](https://drive.google.com/file/d/1sT6jlv9vrpX0npKmnbFeOqZ1JZDrZTQ2/view?usp=sharing)
 
 Download the pre-trained model in to a directory. 
-This model has been created using a partial Rfam dataset. Trained model using the full Rfam seed alignment dataset will be available soon.
-
+This model has been created using a full Rfam 14.3 dataset (~400nt). 
 
 ## 3. Prediction
 
