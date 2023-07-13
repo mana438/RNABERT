@@ -308,6 +308,9 @@ if args.data_showbase:
     show_base_PCA(features, label.reshape(-1), SS)
 
 if args.data_embedding:
+    print(f"args.data_embedding: {args.data_embedding}")
+    print(f"args.embedding_output: {args.embedding_output}")
+    print(f"args.pretraining: {args.pretraining}")
     seqs, label, test_dl  = data.load_data_EMB(args.data_embedding) 
     features = train.make_feature(model, test_dl, seqs)
     for i, data_set in enumerate(args.embedding_output):

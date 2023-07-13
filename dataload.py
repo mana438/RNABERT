@@ -6,7 +6,8 @@ from torchvision import transforms, datasets
 import copy
 import itertools
 from Bio import AlignIO
-from Bio.Alphabet import generic_rna
+#from Bio.Alphabet import generic_rna
+from Bio.Seq import Seq
 
 class DATA:
     def __init__(self, args, config):
@@ -49,15 +50,26 @@ class DATA:
         families = []
         gapped_seqs = []
         seqs = []
-        for i, data_set in enumerate(data_sets):
-            for record in SeqIO.parse(data_set, "fasta"):
+        if type(data_sets) == list:
+            for i, data_set in enumerate(data_sets):
+                for record in SeqIO.parse(data_set, "fasta"):
+                    gapped_seq = str(record.seq).upper()
+                    gapped_seq = gapped_seq.replace("T", "U").replace("R", "A").replace("Y", "U").replace("N", "")
+                    seq = gapped_seq.replace('-', '')
+                    if set(seq) <= set(['A', 'T', 'G', 'C', 'U']) and len(list(seq)) < self.max_length:
+                        seqs.append(seq)
+                        families.append(i)
+                        gapped_seqs.append(gapped_seq)
+        else:
+            for record in data_sets:
                 gapped_seq = str(record.seq).upper()
-                gapped_seq = gapped_seq.replace("T", "U")
+                gapped_seq = gapped_seq.replace("T", "U").replace("R", "A").replace("Y", "U").replace("N", "")
                 seq = gapped_seq.replace('-', '')
                 if set(seq) <= set(['A', 'T', 'G', 'C', 'U']) and len(list(seq)) < self.max_length:
                     seqs.append(seq)
-                    families.append(i)
+                    families.append(0)
                     gapped_seqs.append(gapped_seq)
+        
         gapped_seqs = np.tile(onehot_seq(gapped_seqs, self.max_length*5), (self.mag, 1))
         family = np.tile(np.array(families), self.mag)
         seqs_len = np.tile(np.array([len(i) for i in seqs]), self.mag)   
@@ -109,7 +121,7 @@ class DATA:
         seqs = []
         SS = []
         for i, data_set in enumerate(data_sets):
-            align = AlignIO.read(data_set, "stockholm", alphabet=generic_rna)
+            align = AlignIO.read(data_set, "stockholm")
             cons_SS = align.column_annotations["secondary_structure"]
             for j, record in enumerate(align):
                 gapped_seq = str(record.seq).upper()
@@ -147,7 +159,7 @@ class DATA:
         seqs = []
         SS = []
         for i, data_set in enumerate(data_sets):
-            align = AlignIO.read(data_set, "stockholm", alphabet=generic_rna)
+            align = AlignIO.read(data_set, "stockholm")
             cons_SS = align.column_annotations["secondary_structure"]
             for j, record in enumerate(align):
                 gapped_seq = str(record.seq).upper()
