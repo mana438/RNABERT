@@ -26,30 +26,7 @@ random.seed(10)
 torch.manual_seed(1234)
 np.random.seed(1234)
 
-parser = argparse.ArgumentParser(description='RNABERT')
-parser.add_argument('--mag',  type=int, default=1,
-                    help='enumerate')
-parser.add_argument('--epoch', '-e', type=int, default=200,
-                    help='Number of sweeps over the dataset to train')
-parser.add_argument('--batch', '-b', type=int, default=20,
-                    help='Number of batch size')
-parser.add_argument('--maskrate', '-m', type=float, default=0.0,
-                    help='mask rate')
-parser.add_argument('--pretraining', '-pre', type=str, help='use pretrained weight')
-parser.add_argument('--outputweight', type=str, help='output path for weights')
-parser.add_argument('--algorithm', type=str, default="global", help='algorithm method')
-parser.add_argument('--data_mlm', '-d', type=str, nargs='*', help='data for mlm training')
-parser.add_argument('--data_mul', type=str, nargs='*', help='data for mul training')
-parser.add_argument('--data_alignment', type=str, nargs='*', help='data for alignment test')
-parser.add_argument('--data_clustering', type=str, nargs='*', help='data for clustering test')
-parser.add_argument('--data_showbase', type=str, nargs='*', help='data for base embedding')
-parser.add_argument('--data_embedding', type=str, nargs='*', help='data for base embedding')
-parser.add_argument('--embedding_output', type=str, nargs='*', help='output file for base embedding')
-parser.add_argument('--show_aln', action='store_true')
 
-args = parser.parse_args()
-batch_size = args.batch
-current_time = datetime.datetime.now()
 
 print("start...")
 class TRAIN:
@@ -279,38 +256,64 @@ def objective():
     optimizer = optim.AdamW([{'params': model.parameters(), 'lr': config.adam_lr}])
     return model , optimizer, train, config
 
-config = get_config(file_path = "./RNA_bert_config.json")
-data = DATA(args, config)
-model, optimizer, train, config = objective()
 
-#now start training
-if args.data_mlm:
-    dl_MLM = data.load_data_MLM_SFP(args.data_mlm)
-    model = train.train_MLM_SFP(model, optimizer, dl_MLM, args.epoch, "MLM")
-# elif args.data_sfp:
-#     dl_SFP = data.load_data_MLM_SFP(args.data_sfp)
-#     model = train.train_MLM_SFP(model, optimizer, dl_SFP, args.epoch, "SFP")
-if args.data_mul:
-    dl_MUL = data.load_data_MUL(args.data_mul, "MUL")
-    model = train.train_MLM_SFP(model, optimizer, dl_MUL, args.epoch, "MUL")
 
-if args.data_alignment: 
-    dl_alignment = data.load_data_MUL(args.data_alignment, "MUL")
-    alignment_accuracy = train.align(model, dl_alignment)
-elif args.data_clustering:
-    _, _, ds, test_dl = data.load_data_CLU(args.data_clustering) 
-    train.test(ds, test_dl, model)
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='RNABERT')
+    parser.add_argument('--mag',  type=int, default=1,
+                        help='enumerate')
+    parser.add_argument('--epoch', '-e', type=int, default=200,
+                        help='Number of sweeps over the dataset to train')
+    parser.add_argument('--batch', '-b', type=int, default=20,
+                        help='Number of batch size')
+    parser.add_argument('--maskrate', '-m', type=float, default=0.0,
+                        help='mask rate')
+    parser.add_argument('--pretraining', '-pre', type=str, help='use pretrained weight')
+    parser.add_argument('--outputweight', type=str, help='output path for weights')
+    parser.add_argument('--algorithm', type=str, default="global", help='algorithm method')
+    parser.add_argument('--data_mlm', '-d', type=str, nargs='*', help='data for mlm training')
+    parser.add_argument('--data_mul', type=str, nargs='*', help='data for mul training')
+    parser.add_argument('--data_alignment', type=str, nargs='*', help='data for alignment test')
+    parser.add_argument('--data_clustering', type=str, nargs='*', help='data for clustering test')
+    parser.add_argument('--data_showbase', type=str, nargs='*', help='data for base embedding')
+    parser.add_argument('--data_embedding', type=str, nargs='*', help='data for base embedding')
+    parser.add_argument('--embedding_output', type=str, nargs='*', help='output file for base embedding')
+    parser.add_argument('--show_aln', action='store_true')
 
-if args.data_showbase:
-    seqs, label, SS,  ds, test_dl  = data.load_data_SHOW(args.data_showbase) 
-    features = train.make_feature(model, test_dl)
-    features = features.reshape(-1, features.shape[2])
-    show_base_PCA(features, label.reshape(-1), SS)
+    args = parser.parse_args()
+    batch_size = args.batch
+    current_time = datetime.datetime.now()
+    config = get_config(file_path = "./RNA_bert_config.json")
+    data = DATA(args, config)
+    model, optimizer, train, config = objective()
+    #now start training
+    if args.data_mlm:
+        dl_MLM = data.load_data_MLM_SFP(args.data_mlm)
+        model = train.train_MLM_SFP(model, optimizer, dl_MLM, args.epoch, "MLM")
+    # elif args.data_sfp:
+    #     dl_SFP = data.load_data_MLM_SFP(args.data_sfp)
+    #     model = train.train_MLM_SFP(model, optimizer, dl_SFP, args.epoch, "SFP")
+    if args.data_mul:
+        dl_MUL = data.load_data_MUL(args.data_mul, "MUL")
+        model = train.train_MLM_SFP(model, optimizer, dl_MUL, args.epoch, "MUL")
 
-if args.data_embedding:
-    seqs, label, test_dl  = data.load_data_EMB(args.data_embedding) 
-    features = train.make_feature(model, test_dl, seqs)
-    for i, data_set in enumerate(args.embedding_output):
-        with open(data_set, 'w') as f:
-            for d in features:
-                f.write(str(d) + '\n')
+    if args.data_alignment: 
+        dl_alignment = data.load_data_MUL(args.data_alignment, "MUL")
+        alignment_accuracy = train.align(model, dl_alignment)
+    elif args.data_clustering:
+        _, _, ds, test_dl = data.load_data_CLU(args.data_clustering) 
+        train.test(ds, test_dl, model)
+
+    if args.data_showbase:
+        seqs, label, SS,  ds, test_dl  = data.load_data_SHOW(args.data_showbase) 
+        features = train.make_feature(model, test_dl)
+        features = features.reshape(-1, features.shape[2])
+        show_base_PCA(features, label.reshape(-1), SS)
+
+    if args.data_embedding:
+        seqs, label, test_dl  = data.load_data_EMB(args.data_embedding) 
+        features = train.make_feature(model, test_dl, seqs)
+        for i, data_set in enumerate(args.embedding_output):
+            with open(data_set, 'w') as f:
+                for d in features:
+                    f.write(str(d) + '\n')
