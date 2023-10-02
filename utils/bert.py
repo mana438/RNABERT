@@ -674,8 +674,8 @@ class Load_RNABert_Model(nn.Module):
             emb = self.model(tokens)[2].squeeze(0)[:seq_len]
         return emb
     
-    def predict_by_tokens(self,seqs,tokens):
-        seq_len = len(seqs[0])
+    def predict_by_tokens(self,seq_len,tokens):
+
         tokens = torch.IntTensor(tokens).to('cuda')
         with torch.no_grad():
             emb = self.model(tokens)[2].squeeze(0)[:seq_len]
