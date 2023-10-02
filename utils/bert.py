@@ -643,7 +643,7 @@ class Load_RNABert_Model(nn.Module):
         model.load_state_dict(torch.load(path))
         return model
     
-    def load_data_EMB(self, record):
+    def load_data_EMB(self, records):
         gapped_seqs = []
         seqs = []
 
@@ -678,7 +678,7 @@ class Load_RNABert_Model(nn.Module):
 
         tokens = torch.IntTensor(tokens).to('cuda')
         with torch.no_grad():
-            emb = self.model(tokens)[2].squeeze(0)[:seq_len]
+            emb = self.model(tokens)[2].squeeze(0)[:,:seq_len]
         return emb
 
     def predict(self, record):
