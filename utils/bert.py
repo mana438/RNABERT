@@ -15,6 +15,8 @@ import itertools
 import subprocess
 import matplotlib.pyplot as plt
 import time
+from dataload import *
+
 
 #sklearn
 from sklearn.mixture import GaussianMixture as GMM
@@ -585,3 +587,107 @@ def fix_params(model):
     for name, param in model.bert.embeddings.named_parameters():
         param.requires_grad = False
     return model
+
+def load_data_EMB(self, record):
+    gapped_seqs = []
+    seqs = []
+
+    gapped_seq = str(record).upper()
+    gapped_seq = gapped_seq.replace("T", "U")
+    seq = gapped_seq.replace('-', '')
+    if set(seq) <= set(['A', 'T', 'G', 'C', 'U']) and len(list(seq)) < self.max_length:
+        seqs.append(seq)
+        gapped_seqs.append(gapped_seq)
+    gapped_seqs = np.tile(onehot_seq(gapped_seqs, self.max_length*5), (1, 1))
+    family = np.tile(np.array([1]), 1)
+    seqs_len = np.tile(np.array([len(i) for i in seqs]), 1)   
+    k = 1   
+    kmer_seqs = kmer(seqs, k)
+    masked_seq, low_seq = mask(kmer_seqs, rate = 0, mag = 1)
+    kmer_dict = make_dict(k)
+    swap_kmer_dict = {v: k for k, v in kmer_dict.items()}
+    masked_seq = np.array(convert(masked_seq, kmer_dict, self.max_length))
+    low_seq = np.array(convert(low_seq, kmer_dict, self.max_length))
+
+    return seqs, low_seq
+
+class Load_RNABert_Model(nn.Module):
+    def __new__(cls,model):
+        return super(Load_RNABert_Model,cls).__new__(cls)
+    def __init__(self, path) -> None:
+        super(Load_RNABert_Model,self).__init__()
+        self.config = get_config(file_path = "./RNA_bert_config.json")
+        
+        self.max_length = self.config.max_position_embeddings
+        
+        self.model = self.__load_model(path)
+        
+        
+    def model_device(self, model):
+        print("device: ", 'cuda')
+        print('---Loaded---')
+        model.to('cuda')
+
+        # model = torch.nn.DataParallel(model) # make parallel
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        return model
+
+    def __load_model(self, path):
+        self.config.hidden_size = self.config.num_attention_heads * self.config.multiple    
+
+        model = BertModel(self.config)
+        model = BertForMaskedLM(self.config, model)
+        model = self.model_device(model = model)
+
+        model.load_state_dict(torch.load(path))
+        return model
+    
+    def load_data_EMB(self, records):
+        gapped_seqs = []
+        seqs = []
+
+        gapped_seq = str(record).upper()
+        gapped_seq = gapped_seq.replace("T", "U")
+        seq = gapped_seq.replace('-', '')
+        if set(seq) <= set(['A', 'T', 'G', 'C', 'U']) and len(list(seq)) < self.max_length:
+            seqs.append(seq)
+            gapped_seqs.append(gapped_seq)
+        gapped_seqs = np.tile(onehot_seq(gapped_seqs, self.max_length*5), (1, 1))
+        family = np.tile(np.array([1]), 1)
+        seqs_len = np.tile(np.array([len(i) for i in seqs]), 1)   
+        k = 1   
+        kmer_seqs = kmer(seqs, k)
+        masked_seq, low_seq = mask(kmer_seqs, rate = 0, mag = 1)
+        kmer_dict = make_dict(k)
+        swap_kmer_dict = {v: k for k, v in kmer_dict.items()}
+        masked_seq = np.array(convert(masked_seq, kmer_dict, self.max_length))
+        low_seq = np.array(convert(low_seq, kmer_dict, self.max_length))
+
+        return seqs, low_seq
+    
+    def predict_embedding(self, record):
+        seqs, low_seq = self.load_data_EMB(record)
+        seq_len = len(seqs[0])
+        tokens = torch.IntTensor(low_seq).to('cuda')
+        with torch.no_grad():
+            emb = self.model(tokens)[2].squeeze(0)[:seq_len]
+        return emb
+    
+    def predict_by_tokens(self,seq_len,tokens):
+
+        tokens = torch.IntTensor(tokens).to('cuda')
+        with torch.no_grad():
+            emb = self.model(tokens)[2].squeeze(0)[:,:seq_len]
+        return emb
+
+    def predict(self, record):
+        seqs, low_seq = self.load_data_EMB(record)
+        seq_len = len(seqs[0])
+        tokens = torch.IntTensor(low_seq).to('cuda')
+        with torch.no_grad():
+            emb = self.model(tokens)
+        return emb
+    
+    def eval(self):
+        return self.model.eval()

@@ -96,3 +96,14 @@ python MLM_SFP.py
     --embedding_output ${OUTPUT_FILE} \
     --batch 40 \
 ```
+
+## 4. Python
+
+You can run the model in python by
+
+```python
+from utils.bert import Load_RNABert_Model
+model = Load_RNABert_Model('bert_mul_2.pth')
+emb = model.predict_embedding('AUGC')
+```
+
